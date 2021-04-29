@@ -9,9 +9,9 @@ func main() {
 	r := gin.Default()
 	r.LoadHTMLGlob("template/*.html")
 	r.GET("/", handler.HomeHandler)
-	r.GET("/users", handler.GetAll)
+	r.GET("/users", handler.GetAllUsers)
 	r.GET("/user/:id", handler.GetAUser)
 	r.POST("/user", handler.CreateUser)
-
+	r.PUT("/user/:id", handler.UpdateUser)
 	r.Run(":3000")
 }
