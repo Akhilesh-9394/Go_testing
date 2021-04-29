@@ -45,14 +45,13 @@ func NextID(u *User, us []User) []User {
 	return us
 
 }
-func FindUserById(id int) (*User, error) {
-	users, err := GetallUsers()
-	check(err)
+func FindUserById(id int, users []User) (*User, int, error) {
+	//users, err := GetallUsers()
 	for _, user := range users {
 		if user.Id == id {
-			return &user, nil
+			return &user, id, nil
 		}
 
 	}
-	return nil, fmt.Errorf("User With id %d not Found", id)
+	return nil, 0, fmt.Errorf("User With id %d not Found", id)
 }
