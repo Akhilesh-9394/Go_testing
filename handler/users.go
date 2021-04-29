@@ -28,7 +28,13 @@ func CreateUser(c *gin.Context) {
 
 func GetAUser(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
-	user, err := model.FindUserById(id)
+	users, err := model.GetallUsers()
+	if err != nil {
+		c.String(http.StatusNotFound, "%s", err)
+		return
+
+	}
+	user, _, err := model.FindUserById(id, users)
 	if err != nil {
 		c.String(http.StatusNotFound, "%s", err)
 		return
@@ -37,7 +43,7 @@ func GetAUser(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
-func GetAll(c *gin.Context) {
+func GetAllUsers(c *gin.Context) {
 
 	users, err := model.GetallUsers()
 	if err != nil {
@@ -45,5 +51,27 @@ func GetAll(c *gin.Context) {
 		return
 
 	}
+	c.JSON(200, users)
+}
+
+func UpdateUser(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	var user model.User
+	c.Bind(&user)
+	user.Id = id
+	users, err := model.GetallUsers()
+	if err != nil {
+		c.String(http.StatusNotFound, "%s", err)
+		return
+
+	}
+	_, userId, err := model.FindUserById(id, users)
+	if err != nil {
+		c.String(http.StatusNotFound, "%s", err)
+		return
+
+	}
+	users = append(users[:userId-1], users[userId:]...)
+	users = append(users, user)
 	c.JSON(200, users)
 }
