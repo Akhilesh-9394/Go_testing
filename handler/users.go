@@ -1,77 +1,88 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
-	"strconv"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/fullstacker-go/practice_gin/model"
 	"github.com/gin-gonic/gin"
 )
 
-func HomeHandler(c *gin.Context) {
-	c.HTML(http.StatusOK, "index.html", nil)
-
+var user1 = &model.User{
+	Email:    "akhilesh@gmail.com",
+	Password: "123456",
 }
+var jwtKey = []byte("my_secret_key")
 
-func CreateUser(c *gin.Context) {
+func Signin(c *gin.Context) {
 	var newuser model.User
 	c.Bind(&newuser)
-	users, err := model.GetallUsers()
-	if err != nil {
-		c.String(http.StatusInternalServerError, "%s", err)
+	if newuser.Email != user1.Email || newuser.Password != user1.Password {
+		c.JSON(400, gin.H{
+			"error": "invalid Email or Password",
+		})
 		return
-
 	}
-	user := model.NextID(&newuser, users)
-	c.JSON(http.StatusOK, user)
+	fmt.Println(newuser)
+	expirationTime := time.Now().Add(5 * time.Minute)
+	// Create the JWT claims, which includes the username and expiry time
+	claims := &model.Claims{
+		Username: user1.Email,
+		StandardClaims: jwt.StandardClaims{
+			// In JWT, the expiry time is expressed as unix milliseconds
+			ExpiresAt: expirationTime.Unix(),
+		},
+	}
+
+	// Declare the token with the algorithm used for signing, and the claims
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	// Create the JWT string
+	tokenString, _ := token.SignedString(jwtKey)
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:    "token",
+		Value:   tokenString,
+		Expires: expirationTime,
+	})
+	c.JSON(http.StatusOK, tokenString)
+
 }
 
-func GetAUser(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
-	users, err := model.GetallUsers()
-	if err != nil {
-		c.String(http.StatusNotFound, "%s", err)
-		return
+func Signup(c *gin.Context) {
 
-	}
-	user, _, err := model.FindUserById(id, users)
-	if err != nil {
-		c.String(http.StatusNotFound, "%s", err)
-		return
-
-	}
-	c.JSON(http.StatusOK, user)
 }
 
-func GetAllUsers(c *gin.Context) {
+func Logout(c *gin.Context) {
 
-	users, err := model.GetallUsers()
-	if err != nil {
-		c.String(http.StatusInternalServerError, "%s", err)
-		return
-
-	}
-	c.JSON(200, users)
 }
 
-func UpdateUser(c *gin.Context) {
-	id, _ := strconv.Atoi(c.Param("id"))
-	var user model.User
-	c.Bind(&user)
-	user.Id = id
-	users, err := model.GetallUsers()
-	if err != nil {
-		c.String(http.StatusNotFound, "%s", err)
-		return
+func HomeHandler(c *gin.Context) {
+	token, _ := c.Cookie("token")
+	tknStr := token
 
-	}
-	_, userId, err := model.FindUserById(id, users)
-	if err != nil {
-		c.String(http.StatusNotFound, "%s", err)
-		return
+	// Initialize a new instance of `Claims`
+	claims := &model.Claims{}
 
+	tkn, err := jwt.ParseWithClaims(tknStr, claims, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+	if err != nil {
+		if err == jwt.ErrSignatureInvalid {
+			c.JSON(http.StatusUnauthorized, err)
+			return
+		}
+		c.JSON(http.StatusBadRequest, err)
+		return
 	}
-	users = append(users[:userId-1], users[userId:]...)
-	users = append(users, user)
-	c.JSON(200, users)
+	if !tkn.Valid {
+		c.JSON(http.StatusUnauthorized, err)
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"message": "hello world",
+		"user":    claims.Username,
+	})
 }
